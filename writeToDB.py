@@ -8,9 +8,20 @@ consumer = KafkaConsumer('flink-to-kafka',
 r.connect( "35.163.48.63", 28015).repl()
 r.table("cumulativeTest2").delete().run()
 #r.db("test").table_create("cumulativeTest2").run()
+
+# batch writing 
+batchSize = 200
+batch = []
+
 for message in consumer:
     # cut out open and closing parentheses (artifact of scala's tuple)
     m = message.value[1:-1]
+    #print(m)
     # split on comma
     l = [x.strip() for x in m.split(',')]
-    r.table("cumulativeTest2").insert([{"nodeID": int(l[0]), "timeStamp": long(l[1]), "requestCount": int(l[2])}]).run()
+    doc = {"nodeID": int(l[0]), "timeStamp": long(l[1]), "requestCount": int(l[2])}
+    batch.append(doc)
+    if len(batch) >= batchSize:
+    	print("a")
+        r.table("cumulativeTest2").insert(batch).run()
+        batch = []

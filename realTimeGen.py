@@ -1,5 +1,6 @@
+
 '''
-Script which generates data at random points in time simulating a Poisson process.  
+Script which generates data at random points in time simulating a Poisson process.
 '''
 import math
 import random
@@ -13,13 +14,16 @@ def nextTime(rateParameter):
 def main():
 
     # Kafka information
-    cluster = kafka.KafkaClient("52.33.229.60:9092")
+    cluster = kafka.KafkaClient("localhost:9092")
     prod = kafka.SimpleProducer(cluster, async=False)
     topic = "my-topic"
 
     # Node information.  Currently hardcoded
     # TODO user should be able to specify a graph as an input to the problem
     nodeCount = 2
+
+    # debugging
+#    count = 0
 
     to = time.time()
     print(to)
@@ -28,10 +32,16 @@ def main():
         t = time.time()
         if t - to >= nT:
             to = t
+#            count = count + 1
+
+#            if count % 10000 == 0:
+#                print("mark")
             nT = nextTime(10000)
+            #print(nT)
             #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
             prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*100000))))])
 
 if __name__=="__main__":
     main()
+
