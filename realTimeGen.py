@@ -9,6 +9,9 @@ import time
 
 
 def nextTime(rateParameter):
+    ''' 
+    Function which generates a 
+    '''
     return -math.log(1.0 - random.random()) / rateParameter
 
 def main():
@@ -40,7 +43,7 @@ def main():
             #print(nT)
             #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
-            prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*100000))))])
+            prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*1000))))])
 
 if __name__=="__main__":
     main()
