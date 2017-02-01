@@ -19,18 +19,19 @@ def main():
 
     # Node information.  Currently hardcoded
     # TODO user should be able to specify a graph as an input to the problem
-    nodeCount = 100
+    nodeCount = 2
 
     to = time.time()
+    print(to)
     nT = nextTime(1)
-    print(nT)
     while(1):
         t = time.time()
-        if t - to > nT:
-            to = time.time()
-            nT = nextTime(100000)
+        if t - to >= nT:
+            to = t
+            nT = nextTime(10000)
+            #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
-            prod.send_messages(topic,*[str(n)])
+            prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*100000))))])
 
 if __name__=="__main__":
     main()
