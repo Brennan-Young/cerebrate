@@ -10,9 +10,20 @@ import time
 
 def nextTime(rateParameter):
     ''' 
-    Function which generates a 
+    Function which generates a new random time as the next arrival time in a Poisson process
     '''
     return -math.log(1.0 - random.random()) / rateParameter
+
+def nextTimeSineDemand(rateParameter, sinePeriod, currentPeriodLocation):
+    '''
+    Function which generates a new random time as the next arrival time in a Poisson process.  The paramater of the Poisson process varies according to a sinusoid.  
+    '''
+    l = range(sinePeriod)
+    lLen = len(l)
+    s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 + 1 ) for x in l ]
+    nextPeriodLocation = (currentPeriodLocation + 1) % sinePeriod
+    nextParam = rateParameter * s[currentPeriodLocation]
+    return nextParam, nextPeriodLocation
 
 def main():
 
@@ -25,12 +36,22 @@ def main():
     # TODO user should be able to specify a graph as an input to the problem
     nodeCount = 2
 
+    # Parameter generation information
+    generationType = "sine"
+    avgRate = 100
+    sineLength = 500
+
     # debugging
 #    count = 0
 
     to = time.time()
     print(to)
-    nT = nextTime(1)
+    if generationType == "sine":
+        periodLocation = 0
+        nextParam, periodLocation = nextTimeSineDemand(avgRate, sineLength, periodLocation)
+        nT = nextTime(nextParam)
+    else:
+        nT = nextTime(1)
     while(1):
         t = time.time()
         if t - to >= nT:
@@ -39,7 +60,12 @@ def main():
 
 #            if count % 10000 == 0:
 #                print("mark")
-            nT = nextTime(10000)
+            if generationType == "sine":
+                nT = nextTime(nextParam)
+                nextParam, periodLocation = nextTimeSineDemand(avgRate, sineLength, periodLocation)
+                #print(nextParam)
+            else:
+                nT = nextTime(10000)
             #print(nT)
             #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
