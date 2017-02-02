@@ -14,7 +14,7 @@ def nextTime(rateParameter):
     '''
     return -math.log(1.0 - random.random()) / rateParameter
 
-def nextTimeSineDemand(rateParameter, sinePerturbation):
+def nextTimeSineDemand(rateParameter, sinePerturbation, sinePeriod, currentTime):
     '''
     Function which generates a new random time as the next arrival time in a Poisson process.  The paramater of the Poisson process varies according to a sinusoid.  
     '''
@@ -22,7 +22,7 @@ def nextTimeSineDemand(rateParameter, sinePerturbation):
     # lLen = len(l)
     # s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 ) for x in l ]
     # nextPeriodLocation = (currentPeriodLocation + 1) % sinePeriod
-    nextParam = rateParameter + rateParameter * sinePerturbation
+    nextParam = rateParameter + rateParameter * sinePerturbation * math.sin(2 * math.pi * 1 / sinePeriod * currentTime)
 #    print(nextParam)
     return nextParam
 
@@ -45,10 +45,12 @@ def main():
 
     # Parameter generation information
     generationType = "sine"
-    avgRate = 100000
-    sineLength = 10000
+    avgRate = 1000 # per second average
+    # sineLength = 10000 
+    sinePeriod = 2 # seconds
+    sinePerturbation = 0.5 # scale factor
 
-    s = produceSine(sineLength)
+    #s = produceSine(sineLength)
 
     # debugging
     count = 0
@@ -57,8 +59,7 @@ def main():
     print(to)
     if generationType == "sine":
         periodLocation = 0
-        nextParam = nextTimeSineDemand(avgRate, s[periodLocation])
-        periodLocation = periodLocation + 1
+        nextParam = nextTimeSineDemand(avgRate, sinePerturbation, sinePeriod, to)
         nT = nextTime(nextParam)
     else:
         nT = nextTime(1)
@@ -72,9 +73,8 @@ def main():
                 print("mark")
             if generationType == "sine":
                 nT = nextTime(nextParam)
-                nextParam = nextTimeSineDemand(avgRate, s[periodLocation])
-                periodLocation = (periodLocation + 1) % sineLength
-                #print(nextParam)
+                nextParam = nextTimeSineDemand(avgRate, sinePerturbation, sinePeriod, t)
+                print(nextParam)
             else:
                 nT = nextTime(10000)
             #print(nT)
