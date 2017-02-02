@@ -14,41 +14,51 @@ def nextTime(rateParameter):
     '''
     return -math.log(1.0 - random.random()) / rateParameter
 
-def nextTimeSineDemand(rateParameter, sinePeriod, currentPeriodLocation):
+def nextTimeSineDemand(rateParameter, sinePerturbation):
     '''
     Function which generates a new random time as the next arrival time in a Poisson process.  The paramater of the Poisson process varies according to a sinusoid.  
     '''
+    # l = range(sinePeriod)
+    # lLen = len(l)
+    # s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 ) for x in l ]
+    # nextPeriodLocation = (currentPeriodLocation + 1) % sinePeriod
+    nextParam = rateParameter + rateParameter * sinePerturbation
+#    print(nextParam)
+    return nextParam
+
+def produceSine(sinePeriod):
     l = range(sinePeriod)
     lLen = len(l)
-    s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 + 1 ) for x in l ]
-    nextPeriodLocation = (currentPeriodLocation + 1) % sinePeriod
-    nextParam = rateParameter * s[currentPeriodLocation]
-    return nextParam, nextPeriodLocation
+    s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 ) for x in l ]
+    return s
 
 def main():
 
     # Kafka information
-    cluster = kafka.KafkaClient("localhost:9092")
-    prod = kafka.SimpleProducer(cluster, async=False)
+    #cluster = kafka.KafkaClient("localhost:9092")
+    #prod = kafka.SimpleProducer(cluster, async=False)
     topic = "my-topic"
 
     # Node information.  Currently hardcoded
     # TODO user should be able to specify a graph as an input to the problem
-    nodeCount = 2
+    nodeCount = 1
 
     # Parameter generation information
     generationType = "sine"
-    avgRate = 100
-    sineLength = 500
+    avgRate = 100000
+    sineLength = 10000
+
+    s = produceSine(sineLength)
 
     # debugging
-#    count = 0
+    count = 0
 
     to = time.time()
     print(to)
     if generationType == "sine":
         periodLocation = 0
-        nextParam, periodLocation = nextTimeSineDemand(avgRate, sineLength, periodLocation)
+        nextParam = nextTimeSineDemand(avgRate, s[periodLocation])
+        periodLocation = periodLocation + 1
         nT = nextTime(nextParam)
     else:
         nT = nextTime(1)
@@ -56,20 +66,21 @@ def main():
         t = time.time()
         if t - to >= nT:
             to = t
-#            count = count + 1
+            count = count + 1
 
-#            if count % 10000 == 0:
-#                print("mark")
+            if count % 1000 == 0:
+                print("mark")
             if generationType == "sine":
                 nT = nextTime(nextParam)
-                nextParam, periodLocation = nextTimeSineDemand(avgRate, sineLength, periodLocation)
+                nextParam = nextTimeSineDemand(avgRate, s[periodLocation])
+                periodLocation = (periodLocation + 1) % sineLength
                 #print(nextParam)
             else:
                 nT = nextTime(10000)
             #print(nT)
             #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
-            prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*1000))))])
+#            prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*1000))))])
 
 if __name__=="__main__":
     main()
