@@ -32,6 +32,10 @@ class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Ser
 
 
   def main(args: Array[String]) {
+    // getNetworkInfo.readFile
+    val graph = getNetworkInfo.readFile
+    val v = graph.getVertices
+    v.print
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val properties = new Properties()
