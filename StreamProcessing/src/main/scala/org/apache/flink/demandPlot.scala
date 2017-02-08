@@ -82,9 +82,9 @@ object getDemand {
     */
     // val windowedCount = stream.map{(m: String) => (m.split(" ")(0)(1), 1) }
     val windowedCount = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,1)} )
-				.keyBy(0)
-				.timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
-				.sum(2)
+        .keyBy(0)
+        .timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
+        .sum(2)
     // pack into string for Kafka and add a sink
     windowedCount.map(value => value.toString()).addSink(new FlinkKafkaProducer09[String]("ec2-52-33-229-60.us-west-2.compute.amazonaws.com:9092", "demand-plots", new SimpleStringSchema()))
 
