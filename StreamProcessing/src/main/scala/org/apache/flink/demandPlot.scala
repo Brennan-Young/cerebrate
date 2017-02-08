@@ -16,27 +16,24 @@ object getDemand {
 // case class nodeEvent(nodeID: String, time:Long)
 
   def SimpleMovingAverage(input : Tuple3[String, Long, Int], windowSize: Int) : Tuple3[String, Long, Int] = {
-
-
-return input
-}
-
-class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Serializable {
-  override def extractTimestamp(e: String, prevElementTimestamp: Long) = {
-    e.split(" ")(1).toLong
+    return input
   }
- override def getCurrentWatermark(): Watermark = {
+
+  class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Serializable {
+    override def extractTimestamp(e: String, prevElementTimestamp: Long) = {
+      e.split(" ")(1).toLong
+    }
+    override def getCurrentWatermark(): Watermark = {
       new Watermark(System.currentTimeMillis)
+    }
   }
-}
 
 
   def main(args: Array[String]) {
 
 
-    val graph = getNetworkInfo.readFile
-    val v = graph.getVertices
-    v.print
+    // val graph = getNetworkInfo.readFile
+    // val v = graph.getVertices
 
 
     // establish streaming environment
@@ -50,12 +47,24 @@ class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Ser
     properties.setProperty("group.id", "org.apache.flink")
 
     val stream = env
-      .addSource(new FlinkKafkaConsumer09[String]("my-topic", new SimpleStringSchema(), properties))
-      .assignTimestampsAndWatermarks(new TimestampExtractor)
+        .addSource(new FlinkKafkaConsumer09[String]("my-topic", new SimpleStringSchema(), properties))
+        .assignTimestampsAndWatermarks(new TimestampExtractor)
 
-/*
-The next line is important for anyone trying to learn Scala and Flink at the same time.  TODO Explain why it's important
-*/
+    val pStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong) })
+    val keyStream = pStream.keyBy(0)
+        .mapWithState{
+          (value , supply: Option[Int]) => 
+            supply match
+            {
+              case Some(counter) =>
+              (value, Some(counter - 1))
+              case None => (value, Some(500))
+            }
+          }
+
+    /*
+    The next line is important for anyone trying to learn Scala and Flink at the same time.  TODO Explain why it's important
+    */
     // split input string on spaces, turn into tuple with the number 1 appended
     val parsedStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,1) })
     // key on node ID and record running counts of requests
