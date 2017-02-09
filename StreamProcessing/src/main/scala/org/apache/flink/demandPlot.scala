@@ -19,6 +19,9 @@ object getDemand {
     return input
   }
 
+  // Useful function to convert a string to an int by value but not by reference.  Similar to python's sort(x) vs sorted(x).  
+  def getInt(x:  String) : Int = {return x.toInt}
+
   class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Serializable {
     override def extractTimestamp(e: String, prevElementTimestamp: Long) = {
       e.split(" ")(1).toLong
@@ -32,8 +35,14 @@ object getDemand {
   def main(args: Array[String]) {
 
 
-    // val graph = getNetworkInfo.readFile
+    // val graph = getNetworkInfo.readFileAsGraph
     // val v = graph.getVertices
+    // // v(1).print
+    // val v2 = v.filter(vertex => {vertex.getId == "1" }  )
+    // v2.print
+
+    val (vertexArray, edgeArray) = getNetworkInfo.readFileAsList
+
 
 
     // establish streaming environment
@@ -50,26 +59,41 @@ object getDemand {
         .addSource(new FlinkKafkaConsumer09[String]("my-topic", new SimpleStringSchema(), properties))
         .assignTimestampsAndWatermarks(new TimestampExtractor)
 
-    val pStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong) })
+    val pStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,0) })
     val keyStream = pStream.keyBy(0)
+        /*
+        This next block is pretty good and merits some explanation.  mapWithState takes the keyed stream data and assigns a state to model the supply at a node.  If no state has been assigned (initial case), a supply of 500 will be assigned.  If the supply is greater than 400, the supply will be decremented when a new request is seen.  If the supply dips below 400, a flag is set.  
+        */
         .mapWithState{
           (value , supply: Option[Int]) => 
-            supply match
-            {
+            supply match{
+              case Some(counter) if 0 until 400 contains counter =>
+                (value match{ 
+                  case r: (String,Long,Int) => 
+                    (r._1,r._2,1) }, Some(counter-1))
               case Some(counter) =>
-              (value, Some(counter - 1))
-              case None => (value, Some(500))
+                (value, Some(counter - 1))
+              case None => 
+                (value, Some(vertexArray(getInt(value._1))._2))
             }
-          }
+          } 
+        .print
+
 
     /*
     The next line is important for anyone trying to learn Scala and Flink at the same time.  TODO Explain why it's important
     */
     // split input string on spaces, turn into tuple with the number 1 appended
-    val parsedStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,1) })
+    val parsedStream = stream.map(value => value.split("\\s+") match{ 
+      case Array(x,y) => (x,y.toLong,1) 
+    })
     // key on node ID and record running counts of requests
     val requestCounts = parsedStream.keyBy(0)
-        .fold("0", 0L, 0)((s: (String, Long, Int), r: (String, Long, Int)) => { (r._1, s._2.max(r._2), s._3 + r._3) } )
+        .fold("0", 0L, 0)(
+          (s: (String, Long, Int), r: (String, Long, Int)) => {
+            (r._1, s._2.max(r._2), s._3 + r._3) 
+          }
+        )
     // pack back into string for Kafka
     val packedStream = requestCounts.map(value => value.toString())
     // packedStream.print
