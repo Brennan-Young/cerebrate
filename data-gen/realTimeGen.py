@@ -19,12 +19,7 @@ def nextTimeSineDemand(rateParameter, sinePerturbation, sinePeriod, currentTime)
     '''
     Function which generates a new random time as the next arrival time in a Poisson process.  The paramater of the Poisson process varies according to a sinusoid.  
     '''
-    # l = range(sinePeriod)
-    # lLen = len(l)
-    # s = [ ( ( math.sin(2 * math.pi * x / lLen )) * 1/2 ) for x in l ]
-    # nextPeriodLocation = (currentPeriodLocation + 1) % sinePeriod
     nextParam = rateParameter + rateParameter * sinePerturbation * math.sin(2 * math.pi * 1 / sinePeriod * currentTime)
-#    print(nextParam)
     return nextParam
 
 def produceSine(sinePeriod):
@@ -47,11 +42,8 @@ def main():
     # Parameter generation information
     generationType = "sine"
     avgRate = 100000 # per second average
-    # sineLength = 10000 
     sinePeriod = 20 # seconds
     sinePerturbation = 0.5 # scale factor
-
-    #s = produceSine(sineLength)
 
     # debugging
     count = 0
@@ -78,8 +70,6 @@ def main():
 #                print(nextParam)
             else:
                 nT = nextTime(10000)
-            #print(nT)
-            #print(str(int(round((to*100000)))))
             n = random.randint(0,nodeCount-1)
             prod.send_messages(topic,*[str(n) + ' ' + str(int(round((to*1000))))])
 
