@@ -6,11 +6,16 @@ consumer = KafkaConsumer('flink-to-kafka',
                          group_id='test',
                          bootstrap_servers=['52.33.229.60:9092'])
 r.connect( "35.163.48.63", 28015).repl()
-r.table("cumulativeTest2").delete().run()
+# r.table("cumulativeTest2").delete().run()
 #r.db("test").table_create("cumulativeTest2").run()
 
+try:
+    r.db("test").table_create("cumulativeTest2").run()
+except:
+    r.table("cumulativeTest2").delete().run()
+
 # batch writing 
-batchSize = 200
+batchSize = 20 
 batch = []
 
 for message in consumer:
