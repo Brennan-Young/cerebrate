@@ -2,8 +2,8 @@
 
 # Quick Links
 
-Website: cerebrate.online
-Presentation: bit.ly/cerebrateOnline
+Website: [a link](cerebrate.online)  
+Presentation: [a link](bit.ly/cerebrateOnline)  
 
 # Background
 
