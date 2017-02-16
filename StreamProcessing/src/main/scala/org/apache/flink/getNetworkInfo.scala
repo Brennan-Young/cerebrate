@@ -77,8 +77,8 @@ object getNetworkInfo {
 				.toArray
 
 
-		println(vertexArray.deep.mkString("\n"))
-		println(edgeArray.deep.mkString("\n"))
+		// println(vertexArray.deep.mkString("\n"))
+		// println(edgeArray.deep.mkString("\n"))
 
 		return (vertexArray, edgeArray)
 

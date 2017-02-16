@@ -22,12 +22,16 @@ object getDemand {
   // Useful function to convert a string to an int by value but not by reference.  Similar to python's sort(x) vs sorted(x).  
   def getInt(x:  String) : Int = {return x.toInt}
 
+  def roundToN(timestamp: String, n: Long): String = {
+      (timestamp.toLong/n*n).toString
+    }
+
   class TimestampExtractor extends AssignerWithPeriodicWatermarks[String] with Serializable {
     override def extractTimestamp(e: String, prevElementTimestamp: Long) = {
       e.split(" ")(1).toLong
     }
     override def getCurrentWatermark(): Watermark = {
-      new Watermark(System.currentTimeMillis)
+      new Watermark(System.currentTimeMillis - 5000)
     }
   }
 
@@ -55,19 +59,37 @@ object getDemand {
     properties.setProperty("zookeeper.connect", "ec2-52-33-229-60.us-west-2.compute.amazonaws.com:2181")
     properties.setProperty("group.id", "org.apache.flink")
 
-    val stream = env
+    val requestStream = env
         .addSource(new FlinkKafkaConsumer09[String]("my-topic", new SimpleStringSchema(), properties))
         .assignTimestampsAndWatermarks(new TimestampExtractor)
 
-    val pStream = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,0) })
-    val keyStream = pStream.keyBy(0)
+    val depositStream = env
+        .addSource(new FlinkKafkaConsumer09[String]("deposits", new SimpleStringSchema(), properties))
+        .assignTimestampsAndWatermarks(new TimestampExtractor)
+
+    val parsedRequestStream = requestStream.map(value => 
+          value.split("\\s+") match{ 
+            case Array(x,y) => (x,y.toLong,0) 
+          }
+        )
+
+    val parsedDepositStream = depositStream.map(value => 
+          value.split("\\s+") match{ 
+            case Array(x,y) => (x,y.toLong,1) 
+          }
+        )
+
+    val drStream = parsedRequestStream.union(parsedDepositStream)
+    // val drStream = parsedRequestStream
+
+    val flagStream = parsedRequestStream.keyBy(0)
         /*
         This next block is pretty good and merits some explanation.  mapWithState takes the keyed stream data and assigns a state to model the supply at a node.  If no state has been assigned (initial case), a supply of 500 will be assigned.  If the supply is greater than 400, the supply will be decremented when a new request is seen.  If the supply dips below 400, a flag is set.  
         */
         .mapWithState{
           (value , supply: Option[Int]) => 
             supply match{
-              case Some(counter) if 0 until 400 contains counter =>
+              case Some(counter) if -10000000 until 400 contains counter =>
                 (value match{ 
                   case r: (String,Long,Int) => 
                     (r._1,r._2,1) }, Some(counter-1))
@@ -77,14 +99,64 @@ object getDemand {
                 (value, Some(vertexArray(getInt(value._1))._2))
             }
           } 
-        .print
+        .map(value => value.toString())
+        // .addSink(new FlinkKafkaProducer09[String]("ec2-52-33-229-60.us-west-2.compute.amazonaws.com:9092", "supply-flags", new SimpleStringSchema()))
+
+
+    val supplyCountStream = drStream.keyBy(0)
+        .mapWithState{
+          (value , supply: Option[Int]) => 
+            (value._3,supply) match{
+              case (1,Some(counter)) =>
+                (value match{ 
+                  case r: (String,Long,Int) => 
+                    (r._1,r._2,counter) }, Some(counter + 1))
+              case (0,Some(counter)) =>
+                (value match{
+                  case r: (String,Long,Int) =>
+                    (r._1,r._2,counter) }  , Some(counter - 1))
+              case (_,None) => 
+                (value match{
+                  case r: (String,Long,Int) =>
+                    (r._1,r._2,vertexArray(getInt(value._1))._2)}, Some(vertexArray(getInt(value._1))._2))
+            }
+          } 
+        .keyBy(0)
+        .timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
+        .minBy(2)
+        .map(value => value.toString())
+        .addSink(new FlinkKafkaProducer09[String]("ec2-52-33-229-60.us-west-2.compute.amazonaws.com:9092", "supply-counts", new SimpleStringSchema()))
+
+        // val supplyStream = drStream.keyBy(0)
+        // .mapWithState{
+        //   (value , supply: Option[Int]) => 
+        //     supply match{
+        //       case Some(counter) if -10000000 until 400 contains counter =>
+        //         (value match{ 
+        //           case r: (String,Long,Int) => 
+        //             (r._1,r._2,counter) }, Some(counter-1))
+        //       case Some(counter) =>
+        //         (value match{
+        //           case r: (String,Long,Int) =>
+        //             (r._1,r._2,counter) }  , Some(counter - 1))       
+        //       case None => 
+        //         (value match{
+        //           case r: (String,Long,Int) =>
+        //             (r._1,r._2,vertexArray(getInt(value._1))._2)}, Some(vertexArray(getInt(value._1))._2))
+        //     }
+        //   } 
+        // .keyBy(0)
+        // .timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
+        // .minBy(2)
+        // .map(value => value.toString())
+        // .addSink(new FlinkKafkaProducer09[String]("ec2-52-33-229-60.us-west-2.compute.amazonaws.com:9092", "supply-counts", new SimpleStringSchema()))
 
 
     /*
     The next line is important for anyone trying to learn Scala and Flink at the same time.  TODO Explain why it's important
     */
     // split input string on spaces, turn into tuple with the number 1 appended
-    val parsedStream = stream.map(value => value.split("\\s+") match{ 
+    val parsedStream = requestStream.map(value => value.split("\\s+") match{ 
       case Array(x,y) => (x,y.toLong,1) 
     })
     // key on node ID and record running counts of requests
@@ -105,12 +177,19 @@ object getDemand {
     split input string on spaces, turn into tuple with the number 1 appended.  Key on node ID.  Count all requests in a key that happened in the last 2 seconds, with the window advancing by 1 second.
     */
     // val windowedCount = stream.map{(m: String) => (m.split(" ")(0)(1), 1) }
-    val windowedCount = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,1)} )
+    val windowedCount = requestStream.map(value => value.split("\\s+") match { case Array(x,y) => (x,y.toLong,1)} )
         .keyBy(0)
         .timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
         .sum(2)
     // pack into string for Kafka and add a sink
     windowedCount.map(value => value.toString()).addSink(new FlinkKafkaProducer09[String]("ec2-52-33-229-60.us-west-2.compute.amazonaws.com:9092", "demand-plots", new SimpleStringSchema()))
+
+    // val top10 = stream.map(value => value.split("\\s+") match { case Array(x,y) => (x,roundToN(y,2000),1)} )
+    //     .keyBy(0)
+    //     .timeWindow(Time.milliseconds(2000), Time.milliseconds(1000))
+    //     .sum(2)
+    //     .keyBy(1)
+    //     .
 
     env.execute("Flink Kafka Example")
   }
