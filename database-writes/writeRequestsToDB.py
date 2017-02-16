@@ -5,14 +5,17 @@ import rethinkdb as r
 consumer = KafkaConsumer('flink-to-kafka',
                          group_id='test',
                          bootstrap_servers=['52.33.229.60:9092'])
-r.connect( "35.163.48.63", 28015).repl()
+r.connect("35.163.48.63", 28015).repl()
 # r.table("cumulativeTest2").delete().run()
 #r.db("test").table_create("cumulativeTest2").run()
 
 try:
-    r.db("test").table_create("cumulativeTest2").run()
+    r.db("cerebrate").table_create("cumulativeRequests").run()
 except:
-    r.table("cumulativeTest2").delete().run()
+'''
+Clears the table if it exists.  This is a bad idea if you don't want to delete the data in your table each time you run this.
+'''
+    r.table("cumulativeRequests").delete().run()
 
 # batch writing 
 batchSize = 200
@@ -27,6 +30,6 @@ for message in consumer:
     doc = {"nodeID": int(l[0]), "timeStamp": long(l[1]), "requestCount": int(l[2])}
     batch.append(doc)
     if len(batch) >= batchSize:
-    	print("a")
-        r.table("cumulativeTest2").insert(batch).run()
+    	print("Batch written to cumulativeRequests")
+        r.table("cumulativeRequests").insert(batch).run()
         batch = []
