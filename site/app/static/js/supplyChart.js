@@ -39,13 +39,17 @@ $(document).ready(function() {
             type: 'datetime',
             tickPixelInterval: 50,
             maxZoom: 20 * 10000
+            // title: {
+            //     text: 'Time',
+            //     margin: 80
+            // }
             // minRange = 100000
         },
         yAxis: {
             minPadding: 0.2,
             maxPadding: 0.2,
             title: {
-                text: 'Value',
+                text: 'Supply',
                 margin: 80
             }
         },

@@ -9,7 +9,7 @@ function requestData() {
         url: '/live-data',
         success: function(point) {
             var series = chart.series[0],
-                shift = series.data.length > 300; // shift if the series is
+                shift = series.data.length > 100; // shift if the series is
                                                  // longer than 20
 
             // add the point
@@ -39,13 +39,17 @@ $(document).ready(function() {
             type: 'datetime',
             tickPixelInterval: 50,
             maxZoom: 20 * 10000
+            // title: {
+            //     text: 'Time',
+            //     margin: 80
+            // }
             // minRange = 100000
         },
         yAxis: {
             minPadding: 0.2,
             maxPadding: 0.2,
             title: {
-                text: 'Value',
+                text: 'Requests',
                 margin: 80
             }
         },
